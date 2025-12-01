@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,12 +44,17 @@ fun AdminProductListScreen(
             AdminButton(
                 text = "Editar Menú",
                 icon = Icons.Default.Edit,
-                onClick = { navController.navigate("admin_menu") }
+                onClick = { navController.navigate(Screen.AdminMenu.route) }
             )
             AdminButton(
                 text = "Aceptar Pedidos",
                 icon = Icons.Default.List,
-                onClick = { navController.navigate("admin_orders") }
+                onClick = { navController.navigate(Screen.AdminOrders.route) }
+            )
+            AdminButton(
+                text = "Ver Almacén (Stock)", // <-- BOTÓN NUEVO
+                icon = Icons.Default.Store,
+                onClick = { navController.navigate(Screen.AdminStock.route) }
             )
         }
     }

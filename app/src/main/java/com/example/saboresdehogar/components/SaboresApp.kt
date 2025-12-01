@@ -27,13 +27,7 @@ import androidx.navigation.navArgument
 import com.example.saboresdehogar.R
 import com.example.saboresdehogar.model.user.UserRole
 import com.example.saboresdehogar.screens.*
-import com.example.saboresdehogar.viewmodel.AuthState
-import com.example.saboresdehogar.viewmodel.AuthViewModel
-import com.example.saboresdehogar.viewmodel.CartViewModel
-import com.example.saboresdehogar.viewmodel.MenuViewModel
-import com.example.saboresdehogar.viewmodel.OrderViewModel
-import com.example.saboresdehogar.viewmodel.UserViewModel
-import com.example.saboresdehogar.viewmodel.ViewModelFactory
+import com.example.saboresdehogar.viewmodel.*
 import kotlinx.coroutines.delay
 
 sealed class Screen(val route: String) {
@@ -63,6 +57,7 @@ sealed class Screen(val route: String) {
     }
     object AdminOrders : Screen("admin_orders")
     object AdminUserList : Screen("admin_user_list")
+    object AdminStock : Screen("admin_stock") // <-- RUTA NUEVA
     object ProfileEdit : Screen("profile_edit")
 }
 
@@ -232,6 +227,10 @@ fun AppNavHost(
         composable(Screen.AdminUserList.route) {
              val userViewModel: UserViewModel = viewModel(factory = factory)
              AdminUserListScreen(navController, userViewModel)
+        }
+        composable(Screen.AdminStock.route) { // <-- RUTA NUEVA
+            val stockViewModel: StockViewModel = viewModel(factory = factory)
+            AdminStockScreen(navController, stockViewModel)
         }
         composable(Screen.ProfileEdit.route) {
             ProfileEditScreen(navController)
