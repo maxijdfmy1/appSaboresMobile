@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saboresdehogar.model.user.User
 import com.example.saboresdehogar.data.repository.UserRepository
+import com.example.saboresdehogar.model.user.ActualizarUsuarioDto
 import kotlinx.coroutines.launch
 
 class UserViewModel(private val userRepository: UserRepository) : ViewModel() {
@@ -54,6 +55,34 @@ class UserViewModel(private val userRepository: UserRepository) : ViewModel() {
                 // Manejar error
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Elimina un usuario (Admin)
+     */
+    fun deleteUser(userId: String) {
+        viewModelScope.launch {
+            try {
+                userRepository.deleteUser(userId)
+                loadAllUsers() // Recargar la lista
+            } catch (e: Exception) {
+                // Manejar error
+            }
+        }
+    }
+
+    /**
+     * Actualiza un usuario (Admin)
+     */
+    fun updateUser(userId: String, userDto: ActualizarUsuarioDto) {
+        viewModelScope.launch {
+            try {
+                userRepository.updateUser(userId, userDto)
+                loadAllUsers() // Recargar la lista
+            } catch (e: Exception) {
+                // Manejar error
             }
         }
     }

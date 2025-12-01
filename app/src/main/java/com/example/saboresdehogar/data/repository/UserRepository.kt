@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.saboresdehogar.model.user.User
 import com.example.saboresdehogar.data.source.local.LocalDataSource
 import com.example.saboresdehogar.data.source.remote.ApiService
+import com.example.saboresdehogar.model.user.ActualizarUsuarioDto
 
 class UserRepository(
     private val localDataSource: LocalDataSource,
@@ -32,11 +33,23 @@ class UserRepository(
     /**
      * Actualiza el perfil de un usuario
      */
-    suspend fun updateUser(user: User): User {
+    suspend fun updateUser(id: String, userDto: ActualizarUsuarioDto): User {
         return try {
-            apiService?.updateUser(user.id, user) ?: throw IllegalStateException("API not available")
+            apiService?.updateUser(id, userDto) ?: throw IllegalStateException("API not available")
         } catch (e: Exception) {
             Log.e("USER_REPO", "Error updating user: ${e.message}")
+            throw e
+        }
+    }
+
+    /**
+     * Elimina un usuario
+     */
+    suspend fun deleteUser(id: String) {
+        try {
+            apiService?.deleteUser(id) ?: throw IllegalStateException("API not available")
+        } catch (e: Exception) {
+            Log.e("USER_REPO", "Error deleting user: ${e.message}")
             throw e
         }
     }

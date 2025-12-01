@@ -5,41 +5,98 @@ import com.example.saboresdehogar.model.user.User
 import com.example.saboresdehogar.model.order.Order
 import com.example.saboresdehogar.model.order.OrderStatus
 import com.example.saboresdehogar.model.stock.StockItem
+import com.example.saboresdehogar.model.user.ActualizarUsuarioDto
+import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.*
 
+// DTOs para las peticiones
+data class CrearComidaDto(
+    val nombre: String,
+    val precio: Int,
+    val descripcion: String,
+    val imagenUrl: String,
+    val receta: List<RecetaDto>
+)
+
+data class RecetaDto(
+    @SerializedName("ingredienteId") val ingredienteId: String,
+    @SerializedName("cantidadRequerida") val cantidadRequerida: Int
+)
+
+data class CrearIngredienteDto(
+    val nombre: String,
+    val stock: Int,
+    val unidad: String
+)
+
+data class CrearPedidoDto(
+    val usuarioId: String,
+    val nombreUsuario: String,
+    val direccion: String,
+    val comidasIds: List<String>
+)
+
 interface ApiService {
-    // --- MENU ---
-    @GET("menu")
-    suspend fun getMenu(): List<MenuItem>
+    // --- AUTH ---
+    @POST("api/auth/login")
+    suspend fun login(@Body loginDto: com.example.saboresdehogar.model.user.LoginDto): Response<com.example.saboresdehogar.model.user.LoginResponse>
 
-    @POST("menu")
-    suspend fun addMenuItem(@Body menuItem: MenuItem): MenuItem
-
-    @PUT("menu/{id}")
-    suspend fun updateMenuItem(@Path("id") id: String, @Body menuItem: MenuItem): MenuItem
-
-    @DELETE("menu/{id}")
-    suspend fun deleteMenuItem(@Path("id") id: String): Response<Unit>
-
-    // --- USERS ---
-    @GET("users")
+    // --- USUARIOS ---
+    @GET("api/usuarios")
     suspend fun getUsers(): List<User>
 
-    @PUT("users/{id}")
-    suspend fun updateUser(@Path("id") id: String, @Body user: User): User
+    @GET("api/usuarios/{id}")
+    suspend fun getUser(@Path("id") id: String): User
 
-    // --- ORDERS ---
-    @PUT("orders/{id}/status")
-    suspend fun updateOrderStatus(@Path("id") id: String, @Body status: OrderStatus): Order
+    @POST("api/usuarios")
+    suspend fun registerUser(@Body user: User): User
 
-    // --- STOCK (ALMACÉN) ---
-    @GET("stock")
-    suspend fun getStock(): List<StockItem>
+    @PUT("api/usuarios/{id}")
+    suspend fun updateUser(@Path("id") id: String, @Body user: ActualizarUsuarioDto): User
 
-    @POST("stock")
-    suspend fun addStockItem(@Body item: StockItem): StockItem
+    @DELETE("api/usuarios/{id}")
+    suspend fun deleteUser(@Path("id") id: String): Response<Unit>
 
-    @PUT("stock/{id}")
-    suspend fun updateStockItem(@Path("id") id: String, @Body item: StockItem): StockItem
+    // --- COMIDAS ---
+    @GET("api/comidas")
+    suspend fun getMenu(): List<MenuItem>
+
+    @POST("api/comidas")
+    suspend fun addMenuItem(@Body comida: CrearComidaDto): MenuItem
+
+    @PUT("api/comidas/{id}")
+    suspend fun updateMenuItem(@Path("id") id: String, @Body menuItem: MenuItem): MenuItem
+
+    @DELETE("api/comidas/{id}")
+    suspend fun deleteMenuItem(@Path("id") id: String): Response<Unit>
+
+    // --- INGREDIENTES ---
+    @GET("api/ingredientes")
+    suspend fun getIngredients(): List<StockItem>
+
+    @POST("api/ingredientes")
+    suspend fun createIngredient(@Body ingrediente: CrearIngredienteDto): StockItem
+
+    @PUT("api/ingredientes/{id}")
+    suspend fun updateIngredient(@Path("id") id: String): StockItem
+
+    @PUT("api/ingredientes/{id}/stock")
+    suspend fun restockIngredient(@Path("id") id: String, @Query("cantidad") cantidad: Int): StockItem
+
+    @DELETE("api/ingredientes/{id}")
+    suspend fun deleteIngredient(@Path("id") id: String): Response<Unit>
+
+    // --- PEDIDOS ---
+    @GET("api/pedidos")
+    suspend fun getOrders(): List<Order>
+
+    @POST("api/pedidos")
+    suspend fun createOrder(@Body pedido: CrearPedidoDto): Order
+
+    @PUT("api/pedidos/{id}/estado")
+    suspend fun updateOrderStatus(@Path("id") id: String, @Query("nuevoEstado") nuevoEstado: OrderStatus): Order
+
+    @DELETE("api/pedidos/{id}")
+    suspend fun deleteOrder(@Path("id") id: String): Response<Unit>
 }
