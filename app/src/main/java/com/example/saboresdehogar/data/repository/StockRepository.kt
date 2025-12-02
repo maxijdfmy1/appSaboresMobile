@@ -1,34 +1,30 @@
 package com.example.saboresdehogar.data.repository
 
 import com.example.saboresdehogar.data.source.remote.ApiService
+import com.example.saboresdehogar.data.source.remote.CrearIngredienteDto
 import com.example.saboresdehogar.model.stock.StockItem
-import java.util.UUID
 
 class StockRepository(private val apiService: ApiService?) {
 
-    // Mock data for prototype if API is not ready
-    private val mockStock = mutableListOf(
-        StockItem(UUID.randomUUID().toString(), "Carne picada", 10, "kg"),
-        StockItem(UUID.randomUUID().toString(), "Cebolla", 50, "unidades"),
-        StockItem(UUID.randomUUID().toString(), "Papas", 100, "kg"),
-        StockItem(UUID.randomUUID().toString(), "Arroz", 20, "kg"),
-        StockItem(UUID.randomUUID().toString(), "Harina", 30, "kg")
-    )
-
     suspend fun getStock(): List<StockItem> {
         return try {
-            apiService?.getStock() ?: mockStock
+            // CORRECCIÓN: Llamar a getIngredients() como se define en la ApiService actualizada.
+            apiService?.getIngredients() ?: emptyList()
         } catch (e: Exception) {
-            mockStock
+            // En caso de error, devolver una lista vacía.
+            emptyList()
         }
     }
 
     suspend fun addStockItem(item: StockItem): StockItem {
         return try {
-            apiService?.addStockItem(item) ?: run {
-                mockStock.add(item)
-                item
-            }
+            // CORRECCIÓN: Crear el DTO requerido por el endpoint `createIngredient`.
+            val dto = CrearIngredienteDto(
+                nombre = item.name,
+                stock = item.quantity,
+                unidad = item.unit
+            )
+            apiService?.createIngredient(dto) ?: throw IllegalStateException("Api service not available")
         } catch (e: Exception) {
             throw e
         }
@@ -36,15 +32,18 @@ class StockRepository(private val apiService: ApiService?) {
 
     suspend fun updateStockItem(item: StockItem): StockItem {
         return try {
-            apiService?.updateStockItem(item.id, item) ?: run {
-                val index = mockStock.indexOfFirst { it.id == item.id }
-                if (index != -1) {
-                    mockStock[index] = item
-                    item
-                } else {
-                    throw Exception("Item not found locally")
-                }
-            }
+            // CORRECCIÓN: Llamar al endpoint `updateIngredient`.
+            // Nota: Este endpoint en el backend no modifica el stock, solo datos básicos.
+            // Para el stock, se usaría `restockIngredient`.
+            apiService?.updateIngredient(item.id) ?: throw IllegalStateException("Api service not available")
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+    
+    suspend fun restockIngredient(itemId: String, amount: Int): StockItem {
+        return try {
+            apiService?.restockIngredient(itemId, amount) ?: throw IllegalStateException("Api service not available")
         } catch (e: Exception) {
             throw e
         }

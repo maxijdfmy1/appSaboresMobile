@@ -60,22 +60,29 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
         _authState.value = AuthState.Loading
 
-        val credentials = LoginCredentials(email, password)
-        val response = authRepository.login(credentials)
+        // CORRECCIÓN: Envolver la llamada a la función suspend en una corrutina.
+        viewModelScope.launch {
+            try {
+                val credentials = LoginCredentials(email, password)
+                val response = authRepository.login(credentials)
 
-        _authResponse.value = response
+                _authResponse.value = response
 
-        if (response.success) {
-            _currentUser.value = response.user
-            _isLoggedIn.value = true
-            _authState.value = AuthState.Authenticated
-        } else {
-            _authState.value = AuthState.Error(response.message ?: "Error al iniciar sesión")
+                if (response.success) {
+                    _currentUser.value = response.user
+                    _isLoggedIn.value = true
+                    _authState.value = AuthState.Authenticated
+                } else {
+                    _authState.value = AuthState.Error(response.message ?: "Error al iniciar sesión")
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Error de conexión")
+            }
         }
     }
 
     /**
-     * Registra un nuevo usuario (MODIFICADO)
+     * Registra un nuevo usuario
      */
     fun register(
         email: String,
@@ -96,17 +103,24 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
         _authState.value = AuthState.Loading
 
-        val request = RegisterRequest(email, password, name, phone, rut, address)
-        val response = authRepository.register(request)
+        // CORRECCIÓN: Envolver la llamada a la función suspend en una corrutina.
+        viewModelScope.launch {
+            try {
+                val request = RegisterRequest(email, password, name, phone, rut, address)
+                val response = authRepository.register(request)
 
-        _authResponse.value = response
+                _authResponse.value = response
 
-        if (response.success) {
-            _currentUser.value = response.user
-            _isLoggedIn.value = true
-            _authState.value = AuthState.Authenticated
-        } else {
-            _authState.value = AuthState.Error(response.message ?: "Error al registrarse")
+                if (response.success) {
+                    _currentUser.value = response.user
+                    _isLoggedIn.value = true
+                    _authState.value = AuthState.Authenticated
+                } else {
+                    _authState.value = AuthState.Error(response.message ?: "Error al registrarse")
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Error de conexión")
+            }
         }
     }
 
@@ -122,7 +136,6 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
                 _authState.value = AuthState.Authenticated
             } catch (e: Exception) {
                 _authState.value = AuthState.Error("Error al actualizar perfil: ${e.message}")
-                throw e // Re-throw to handle in UI if needed via try-catch block there
             }
         }
     }

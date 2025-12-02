@@ -1,157 +1,119 @@
 package com.example.saboresdehogar.data.repository
 
+import android.util.Log
+import com.example.saboresdehogar.data.source.remote.ApiService
 import com.example.saboresdehogar.model.auth.AuthResponse
 import com.example.saboresdehogar.model.auth.LoginCredentials
 import com.example.saboresdehogar.model.auth.RegisterRequest
 import com.example.saboresdehogar.model.auth.UserSession
+import com.example.saboresdehogar.model.user.ActualizarUsuarioDto
+import com.example.saboresdehogar.model.user.LoginDto
 import com.example.saboresdehogar.model.user.User
 import com.example.saboresdehogar.data.source.local.LocalDataSource
 import com.example.saboresdehogar.model.user.Address
-import com.example.saboresdehogar.model.user.UserRole // <-- IMPORTANTE
+import com.example.saboresdehogar.model.user.UserRole
 import java.util.UUID
 
 class AuthRepository(
     private val localDataSource: LocalDataSource,
-    private val userRepository: UserRepository? = null // Inject UserRepository
+    private val apiService: ApiService,
+    private val userRepository: UserRepository? = null
 ) {
 
-    /**
-     * Login de usuario (MODIFICADO PARA ADMIN)
-     */
-    fun login(credentials: LoginCredentials): AuthResponse {
-        var user = localDataSource.getUserByEmail(credentials.email)
+    suspend fun login(credentials: LoginCredentials): AuthResponse {
+        return try {
+            val loginDto = LoginDto(email = credentials.email, password = credentials.password)
+            val response = apiService.login(loginDto)
 
-        return if (user != null) {
-
-            // --- INICIO DE LÓGICA DE ADMIN (SIMULACIÓN) ---
-            // Si el email es admin@sabores.cl, forzamos el rol de ADMIN
-            if (user.email.equals("admin@sabores.cl", ignoreCase = true)) {
-                val adminAddress = Address(
-                    id = "admin-addr-001",
-                    street = "Oficina Central",
-                    number = "123",
-                    comuna = "Santiago",
-                    isDefault = true
+            if (response.isSuccessful && response.body() != null) {
+                val loginResponse = response.body()!!
+                val user = User(
+                    id = loginResponse.id,
+                    email = loginResponse.email,
+                    name = loginResponse.usuario,
+                    role = UserRole.valueOf(loginResponse.rol),
+                    phone = "",
+                    rut = "",
+                    addresses = emptyList()
                 )
-                user = user.copy(role = UserRole.ADMIN, addresses = listOf(adminAddress))
+
+                val token = UUID.randomUUID().toString()
+                val expiresAt = System.currentTimeMillis() + (24 * 60 * 60 * 1000)
+
+                val session = UserSession(user = user, token = token, expiresAt = expiresAt)
+                localDataSource.saveUserSession(session)
+
+                AuthResponse(success = true, user = user, token = token, expiresAt = expiresAt, message = loginResponse.mensaje)
             } else {
-                // Asegurarnos que cualquier otro sea CUSTOMER
-                user = user.copy(role = UserRole.CUSTOMER)
+                // --- MEJORA DE ERROR ---
+                // Capturamos el código y el mensaje de error real del servidor.
+                val errorBody = response.errorBody()?.string() ?: "Cuerpo del error vacío"
+                val errorCode = response.code()
+                val errorMessage = "Error del servidor (Código: $errorCode): $errorBody"
+                Log.e("AuthRepository", errorMessage)
+                AuthResponse(success = false, message = errorMessage, errorCode = "API_ERROR_$errorCode")
             }
-            // --- FIN DE LÓGICA DE ADMIN ---
-
-            val token = UUID.randomUUID().toString()
-            val expiresAt = System.currentTimeMillis() + (24 * 60 * 60 * 1000) // 24 horas
-
-            val session = UserSession(
-                user = user,
-                token = token,
-                expiresAt = expiresAt
-            )
-
-            localDataSource.saveUserSession(session)
-
-            AuthResponse(
-                success = true,
-                user = user,
-                token = token,
-                expiresAt = expiresAt,
-                message = "Login exitoso"
-            )
-        } else {
-            AuthResponse(
-                success = false,
-                message = "Usuario o contraseña incorrectos",
-                errorCode = "INVALID_CREDENTIALS"
-            )
+        } catch (e: Exception) {
+            // Esto captura errores de red (ej. IP incorrecta, sin internet)
+            Log.e("AuthRepository", "Error de conexión: ${e.message}")
+            AuthResponse(success = false, message = "Error de conexión: ${e.message}", errorCode = "NETWORK_ERROR")
         }
     }
 
-    /**
-     * Registro de nuevo usuario (CORREGIDO)
-     */
-    fun register(request: RegisterRequest): AuthResponse {
-        // Verificar si el usuario ya existe
-        val existingUser = localDataSource.getUserByEmail(request.email)
-
-        return if (existingUser != null) {
-            AuthResponse(
-                success = false,
-                message = "El email ya está registrado",
-                errorCode = "EMAIL_EXISTS"
-            )
-        } else {
-            // Crear nuevo usuario (con los campos nuevos)
+    suspend fun register(request: RegisterRequest): AuthResponse {
+        return try {
             val newUser = User(
-                id = UUID.randomUUID().toString(),
+                id = "",
                 email = request.email,
                 name = request.name,
                 phone = request.phone,
                 rut = request.rut,
-                addresses = listOf(Address(id = UUID.randomUUID().toString(), street = request.address, number = "", comuna = "", isDefault = true)),
-                role = UserRole.CUSTOMER // Todos los registros son CUSTOMER
+                addresses = listOf(Address(id = "", street = request.address, number = "", comuna = "")),
+                role = UserRole.CUSTOMER
             )
-
-            // En una app real, aquí guardarías el usuario en la base de datos
-            // Por ahora solo creamos la sesión
-            val token = UUID.randomUUID().toString()
-            val expiresAt = System.currentTimeMillis() + (24 * 60 * 60 * 1000)
-
-            val session = UserSession(
-                user = newUser,
-                token = token,
-                expiresAt = expiresAt
-            )
-
-            localDataSource.saveUserSession(session)
-
-            AuthResponse(
-                success = true,
-                user = newUser,
-                token = token,
-                expiresAt = expiresAt,
-                message = "Registro exitoso"
-            )
+            val registeredUser = apiService.registerUser(newUser)
+            login(LoginCredentials(request.email, request.password))
+        } catch (e: Exception) {
+            AuthResponse(success = false, message = "El email ya está registrado", errorCode = "EMAIL_EXISTS")
         }
     }
 
     suspend fun updateProfile(user: User): User {
-        val updatedUser = userRepository?.updateUser(user) ?: throw IllegalStateException("UserRepository not available")
-        // Update session
-        val currentSession = localDataSource.getUserSession()
-        if(currentSession != null) {
-            val newSession = currentSession.copy(user = updatedUser)
-            localDataSource.saveUserSession(newSession)
+        return try {
+            val userDto = ActualizarUsuarioDto(
+                nombre = user.name,
+                rut = user.rut ?: "",
+                email = user.email,
+                telefono = user.phone,
+                direccion = user.getDefaultAddress()?.getFullAddress() ?: ""
+            )
+            val updatedUser = userRepository?.updateUser(user.id, userDto)
+                ?: throw IllegalStateException("UserRepository not available")
+
+            val currentSession = localDataSource.getUserSession()
+            if (currentSession != null) {
+                val newSession = currentSession.copy(user = updatedUser)
+                localDataSource.saveUserSession(newSession)
+            }
+            updatedUser
+        } catch (e: Exception) {
+            throw e
         }
-        return updatedUser
     }
 
-    /**
-     * Obtiene la sesión actual
-     */
     fun getCurrentSession(): UserSession? {
         return localDataSource.getUserSession()
     }
 
-    /**
-     * Verifica si hay usuario logueado
-     */
     fun isLoggedIn(): Boolean {
         return localDataSource.isUserLoggedIn()
     }
 
-    /**
-     * Cierra sesión
-     */
     fun logout() {
         localDataSource.logout()
     }
 
-    /**
-     * Obtiene el usuario actual
-     */
     fun getCurrentUser(): User? {
-        // Modificado para reflejar el rol de la sesión
         return getCurrentSession()?.user
     }
 }

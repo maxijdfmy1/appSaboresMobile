@@ -33,6 +33,10 @@ class UserRepository(
     /**
      * Actualiza el perfil de un usuario
      */
+    /**
+     * Versión 1: Para el Admin (recibe ID y DTO directamente desde el diálogo de edición)
+     * Soluciona el error en UserViewModel.kt
+     */
     suspend fun updateUser(id: String, userDto: ActualizarUsuarioDto): User {
         return try {
             apiService?.updateUser(id, userDto) ?: throw IllegalStateException("API not available")
@@ -40,6 +44,27 @@ class UserRepository(
             Log.e("USER_REPO", "Error updating user: ${e.message}")
             throw e
         }
+    }
+
+    /**
+     * Versión 2: Para AuthRepository/Perfil (recibe el objeto User completo)
+     * Mantiene la compatibilidad con AuthRepository.kt
+     */
+    suspend fun updateUser(user: User): User {
+        // Construimos el DTO internamente
+        val rutSeguro = user.rut ?: ""
+        val direccionSegura = user.getDefaultAddress()?.street ?: ""
+
+        val dto = ActualizarUsuarioDto(
+            nombre = user.name,
+            rut = rutSeguro,
+            email = user.email,
+            telefono = user.phone,
+            direccion = direccionSegura
+        )
+
+        // Llamamos a la versión 1 reutilizando la lógica
+        return updateUser(user.id, dto)
     }
 
     /**

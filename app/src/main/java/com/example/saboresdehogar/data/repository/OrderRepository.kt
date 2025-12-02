@@ -7,6 +7,7 @@ import com.example.saboresdehogar.model.order.OrderType
 import com.example.saboresdehogar.model.cart.ShoppingCart
 import com.example.saboresdehogar.data.source.local.LocalDataSource
 import com.example.saboresdehogar.data.source.remote.ApiService
+import com.example.saboresdehogar.data.source.remote.CrearPedidoDto
 import java.util.UUID
 
 class OrderRepository(
@@ -18,7 +19,7 @@ class OrderRepository(
     /**
      * Crea una nueva orden
      */
-    fun createOrder(
+    suspend fun createOrder( // Agregamos 'suspend' para llamadas de red
         customerName: String,
         customerPhone: String,
         orderType: OrderType,
@@ -26,28 +27,41 @@ class OrderRepository(
         notes: String? = null
     ): Order? {
         val cart = cartRepository.getCart()
+        if (cart.items.isEmpty()) return null
 
-        if (cart.items.isEmpty()) {
-            return null
+        val userId = localDataSource.getUserSession()?.user?.id ?: "invitado"
+
+        // 1. Preparar DTO para el Backend
+        val comidaIds = cart.items.flatMap { cartItem ->
+            // Si la cantidad es 2, enviamos el ID 2 veces (o como lo maneje tu backend)
+            // Según tu backend (PedidoService), recibe lista de IDs y descuenta 1 por cada ID.
+            List(cartItem.quantity) { cartItem.menuItem.id }
         }
 
-        val order = Order(
-            id = UUID.randomUUID().toString(),
-            items = cart.items.toList(),
-            total = cart.total,
-            customerName = customerName,
-            customerPhone = customerPhone,
-            orderType = orderType,
-            deliveryAddress = deliveryAddress,
-            notes = notes,
-            userId = localDataSource.getUserSession()?.user?.id
+        val pedidoDto = CrearPedidoDto(
+            usuarioId = userId,
+            nombreUsuario = customerName,
+            direccion = deliveryAddress ?: "Retiro en tienda",
+            comidasIds = comidaIds
         )
 
-        // TODO: Send order to API if connected
-        localDataSource.saveOrder(order)
-        cartRepository.clearCart()
+        return try {
+            // 2. Intentar enviar al Backend
+            val nuevaOrdenBackend = apiService?.createOrder(pedidoDto)
 
-        return order
+            if (nuevaOrdenBackend != null) {
+                // Guardar respaldo local
+                localDataSource.saveOrder(nuevaOrdenBackend)
+                cartRepository.clearCart()
+                nuevaOrdenBackend
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("ORDER_REPO", "Fallo al crear pedido en servidor: ${e.message}")
+            // Manejo de error o guardar localmente con flag "no_sincronizado"
+            null
+        }
     }
 
     /**

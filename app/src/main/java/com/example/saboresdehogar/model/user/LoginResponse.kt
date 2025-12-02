@@ -1,9 +1,11 @@
 package com.example.saboresdehogar.model.user
 
+import com.google.gson.annotations.SerializedName
+
 data class LoginResponse(
-    val mensaje: String,
-    val usuario: String,
-    val email: String,
-    val rol: String,
-    val id: String
+    @SerializedName("mensaje") val mensaje: String,
+    @SerializedName("usuario") val usuario: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("rol") val rol: String,
+    @SerializedName("id") val id: String
 )

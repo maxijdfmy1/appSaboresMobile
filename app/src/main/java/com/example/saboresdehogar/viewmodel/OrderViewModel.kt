@@ -57,7 +57,7 @@ class OrderViewModel(
         deliveryAddress: String? = null,
         notes: String? = null
     ) {
-        // Validaciones
+        // 1. Validaciones (Se mantienen igual)
         if (customerName.isBlank()) {
             _orderError.value = "El nombre es requerido"
             return
@@ -78,32 +78,35 @@ class OrderViewModel(
             return
         }
 
-        _isLoading.value = true
+        // 2. Lanzamos la Corrutina para la llamada asíncrona
+        viewModelScope.launch {
+            _isLoading.value = true
 
-        try {
-            val order = orderRepository.createOrder(
-                customerName = customerName,
-                customerPhone = customerPhone,
-                orderType = orderType,
-                deliveryAddress = deliveryAddress,
-                notes = notes
-            )
+            try {
+                // Ahora sí podemos llamar a la función suspend
+                val order = orderRepository.createOrder(
+                    customerName = customerName,
+                    customerPhone = customerPhone,
+                    orderType = orderType,
+                    deliveryAddress = deliveryAddress,
+                    notes = notes
+                )
 
-            if (order != null) {
-                _currentOrder.value = order
-                _orderCreated.value = true
-                _orderError.value = null
-                loadOrders() // Actualiza la lista
-            } else {
-                _orderError.value = "Error al crear la orden"
+                if (order != null) {
+                    _currentOrder.value = order
+                    _orderCreated.value = true
+                    _orderError.value = null
+                    loadOrders() // Actualiza la lista
+                } else {
+                    _orderError.value = "Error al crear la orden"
+                }
+            } catch (e: Exception) {
+                _orderError.value = "Error: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
-        } catch (e: Exception) {
-            _orderError.value = "Error: ${e.message}"
-        } finally {
-            _isLoading.value = false
         }
     }
-
     /**
      * Carga todas las órdenes del usuario
      */
